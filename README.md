@@ -18,7 +18,8 @@ d) Third Situation , if a large group of people are in a critical situation and 
 e) Fourth Situation ,after reaching out to the relief camp, if some group again faces some problem like that of food,water or some member faces any medical issue suddenly and number of people of relief camps are not sufficient, they can push the "HELP INSIDE HELP" option. This option notifies the near-by functional hospital authorities who will reach with their emergency ambulances and staffs to help the needy.
 
 f) Other Options under the app:-  
-    `f.1) Post Calamity Funds:- The app will contain Payment Options just like in many other modern apps which can help in the welfare of people or can be used in National Relief fund after any calamity,
+    `
+     f.1) Post Calamity Funds:- The app will contain Payment Options just like in many other modern apps which can help in the welfare of people or can be used in National Relief fund after any calamity,
     
      f.2) Pre Calamity Funds:- The app will also set up digital payment methods to add up funds from people in their local area funds. This can be added whenever people of the area feel that a natural calamity may strike(upon predictions). This fund can be used later for them only.
      
