@@ -5,7 +5,7 @@ $dom = new DOMDocument("1.0");
 $node = $dom->createElement("markers");
 $parnode = $dom->appendChild($node);
 // Opens a connection to a mySQL server
-$connection=new mysqli("url", "username", "password", "database");
+$connection=new mysqli("approdhan.mysql.database.azure.com:3306", "avneet@approdhan", "Enter Your P4SSW0RD Here", "mapdb");
 if (mysqli_connect_errno()) {
   die("Not connected : " . mysqli_connect_error());
 }
@@ -21,7 +21,7 @@ if ($result = $connection->query("SELECT lat, lng, title FROM markers;")) {
   }
   $result->close();
 }
-else die("A horrible death. Query has Problem.");
+else die('Invalid query: '.$connection->error);
 $connection->close();
 echo $dom->saveXML();
 ?>

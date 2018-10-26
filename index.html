@@ -2,196 +2,178 @@
 <html>
 
 <head>
-    <title>Geolocation</title>
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <meta charset="utf-8">
-    <style>
-        #map {
-            height: 100%;
-        }
-
-        html,
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <title>AAProdhan Disaster Management</title>
+    <meta charset='utf-8' />
+    <style type='text/css'>
         body {
-            height: 100%;
             margin: 0;
             padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Helvetica, Arial, Sans-Serif
         }
     </style>
 </head>
 
 <body>
-    <div id="map"></div>
-    <script>
-        var map, infoWindow;
+    <div id='printoutPanel'></div>
 
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: {
-                    lat: 26.1872126,
-                    lng: 91.6919173
-                },
-                zoom: 16
+    <div id='myMap' style='width: 100vw; height: 100vh;'></div>
+    <script type='text/javascript'>
+        var map;
+
+        function loadMapScenario() {
+            var navigationBarMode = Microsoft.Maps.NavigationBarMode;
+            map = new Microsoft.Maps.Map(document.getElementById('myMap'), {
+                center: new Microsoft.Maps.Location(26.1872126, 91.6919173),
+                mapTypeId: Microsoft.Maps.MapTypeId.road,
+                zoom: 15,
+                navigationBarMode: navigationBarMode.road,
+                supportedMapTypes: [Microsoft.Maps.MapTypeId.road]
             });
-            var centerControlDiv = document.createElement('div');
-            var centerControl = new CenterControl(centerControlDiv, map);
 
-            centerControlDiv.index = 1;
-            map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
+            populateEntries(map);
 
-            infoWindow = new google.maps.InfoWindow;
-            // Try HTML5 geolocation.
+            tryLocation(map);
+
+            Microsoft.Maps.Events.addHandler(map, 'click', addpin);
+
+            $("#container").click(function () {
+                var pushpin = new Microsoft.Maps.Pushpin(map.getCenter(), {
+                    color: 'red'
+                });
+                map.entities.push(pushpin);
+            });
+        }
+
+        function tryLocation(map) { // Try HTML5 geolocation.
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function (position) {
                     var pos = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-
-                    infoWindow.setPosition(pos);
-                    infoWindow.setContent('Location found.');
-                    infoWindow.open(map);
-                    map.setCenter(pos);
+                    map.setView({
+                        center: new Microsoft.Maps.Location(pos.lat, pos.lng),
+                        zoom: 17
+                    });
                 }, function () {
-                    handleLocationError(true, infoWindow, map.getCenter());
+                    alert("Can not find GeoLocation");
                 });
             } else {
-                // Browser doesn't support Geolocation
-                handleLocationError(false, infoWindow, map.getCenter());
+                alert("Browser Doesn't support Geolocation");
             }
+        }
 
-            google.maps.event.addListener(map, 'click', function (event) {
-                placeMarker(event.latLng);
-            });
+        function populateEntries(map) {
             downloadUrl('data.php', function (data) {
                 var xml = data.responseXML;
-                var markers = xml.documentElement.getElementsByTagName('marker');
-                Array.prototype.forEach.call(markers, function (markerElem) {
-                    var lat = markerElem.getAttribute('lat');
-                    var lng = markerElem.getAttribute('lng');
-                    var title = markerElem.getAttribute('title');
-                    var point = new google.maps.LatLng(
-                        parseFloat(markerElem.getAttribute('lat')),
-                        parseFloat(markerElem.getAttribute('lng')));
+                if (xml) {
+                    var markers = xml.documentElement.getElementsByTagName('marker');
+                    Array.prototype.forEach.call(markers, function (markerElem) {
+                        var title = markerElem.getAttribute('title');
+                        var location = new Microsoft.Maps.Location(parseFloat(markerElem.getAttribute(
+                                'lat')),
+                            parseFloat(markerElem.getAttribute('lng')));
 
-                    var infowincontent = document.createElement('div');
-                    var strong = document.createElement('strong');
-                    strong.innerHTML = title;
-                    infowincontent.appendChild(strong);
-                    infowincontent.appendChild(document.createElement('br'));
+                        var pushpin = new Microsoft.Maps.Pushpin(location, {
+                            color: 'red',
+                            draggable: false,
+                            enableHoverStyle: true
+                        });
+                        var infobox = new Microsoft.Maps.Infobox(location, {
+                            description: title,
+                            actions: [{
+                                label: "Remove",
+                                eventHandler: function () {
+                                    var url =
+                                        '//approdhan.azurewebsites.net/modify.php?title=' +
+                                        title + '&lat=' + location.latitude +
+                                        '&lng=' + location.longitude +
+                                        "&action=remove";
+                                    url = encodeURI(url);
+                                    var request = window.ActiveXObject ?
+                                        new ActiveXObject('Microsoft.XMLHTTP') :
+                                        new XMLHttpRequest;
+                                    request.onreadystatechange = doNothing;
+                                    request.open('GET', url, true);
+                                    request.send(null);
+                                setTimeout(function(){ window.location.reload(true); }, 1000);
 
-                    var marker = new google.maps.Marker({
-                        map: map,
-                        position: point,
-                        draggable: false,
-                        animation: google.maps.Animation.DROP,
-                        map: map,
+                                }
+                            }]
+                        });
+                        infobox.setMap(map);
+
+                        map.entities.push(pushpin);
+                        Microsoft.Maps.Events.addHandler(pushpin, 'click', function () {
+                            infobox.setOptions({
+                                visible: !infobox.getVisible()
+                            });
+                        });
                     });
-                    marker.addListener('click', function () {
-                        map.setCenter(marker.getPosition());
-                        infoWindow.setContent(infowincontent);
-                        infoWindow.open(map, marker);
-
-                    });
-                });
-
+                }
             });
         }
 
-        function CenterControl(controlDiv, map) {
-
-            // Set CSS for the control border.
-            var controlUI = document.createElement('div');
-            controlUI.style.backgroundColor = '#fff';
-            controlUI.style.border = '2px solid #fff';
-            controlUI.style.borderRadius = '3px';
-            controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
-            controlUI.style.cursor = 'pointer';
-            controlUI.style.marginBottom = '22px';
-            controlUI.style.textAlign = 'center';
-            controlUI.title = 'Click to recenter the map to your Geo-Location';
-            controlDiv.appendChild(controlUI);
-
-            // Set CSS for the control interior.
-            var controlText = document.createElement('div');
-            controlText.style.color = 'rgb(25,25,25)';
-            controlText.style.fontFamily = 'Roboto,Arial,sans-serif';
-            controlText.style.fontSize = '16px';
-            controlText.style.lineHeight = '38px';
-            controlText.style.paddingLeft = '5px';
-            controlText.style.paddingRight = '5px';
-            controlText.innerHTML = 'Locate Me';
-            controlUI.appendChild(controlText);
-
-            // Setup the click event listeners: simply set the map to Chicago.
-            controlUI.addEventListener('click', function () {
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(function (position) {
-                                var pos = {
-                                    lat: position.coords.latitude,
-                                    lng: position.coords.longitude
-                                };
-                                map.setCenter(pos);
-                            });
-                        }
-                    });
-
-        }
-
-
-        function placeMarker(location) {
+        function addpin(e) {
+            var keep = 0;
+            var point = new Microsoft.Maps.Point(e.getX(), e.getY());
+            var locTemp = e.target.tryPixelToLocation(point);
+            var location = new Microsoft.Maps.Location(locTemp.latitude, locTemp.longitude);
+            var pin = new Microsoft.Maps.Pushpin(location, {
+                color: 'red',
+                draggable: false,
+                enableHoverStyle: true
+            });
             var info = prompt("Please describe your Emergency", "");
-            info = info + " ";
-            title = info.trim();
-            if (title != "") {
+            info = (info === null) ? info : info + " ";
+            title = (info === null) ? info : info.trim();
+            if (title && title != "") {
                 var info = prompt("How to contact you?", "");
-                if (info.trim() != 0) {
+                if (info && info.trim() != 0) {
                     title = "HELP: " + title + "<br />CONTACT: " + info.trim();
-                    var infowincontent = document.createElement('div');
-                    var strong = document.createElement('strong');
-                    strong.innerHTML = title;
-                    infowincontent.appendChild(strong);
-                    infowincontent.appendChild(document.createElement('br'));
+                    map.entities.push(pin);
 
-                    var marker = new google.maps.Marker({
-                        position: location,
-                        draggable: false,
-                        animation: google.maps.Animation.DROP,
-                        map: map
+                    var infobox = new Microsoft.Maps.Infobox(locTemp, {
+                        description: title,
+                        actions: [{
+                            label: "Remove",
+                            eventHandler: function () {
+                                var url = '//approdhan.azurewebsites.net/modify.php?title=' + title +
+                                    '&lat=' + location.latitude + '&lng=' + location.longitude +
+                                    "&action=remove";
+
+                                url = encodeURI(url);
+                                console.log(url);
+                                var request = window.ActiveXObject ?
+                                    new ActiveXObject('Microsoft.XMLHTTP') :
+                                    new XMLHttpRequest;
+                                request.onreadystatechange = doNothing;
+                                request.open('GET', url, true);
+                                request.send(null);
+                                setTimeout(function(){ window.location.reload(true); }, 1000);
+                                
+                            }
+                        }]
                     });
-                    marker.addListener('click', function () {
-                        infoWindow.setContent(infowincontent);
-                        infoWindow.open(map, marker);
-
+                    infobox.setMap(map);
+                    Microsoft.Maps.Events.addHandler(pin, 'click', function () {
+                        infobox.setOptions({
+                            visible: !infobox.getVisible()
+                        });
                     });
 
-                    var latlng = marker.getPosition();
-                    var url = 'modify.php?title=' + title + '&lat=' + latlng.lat() + '&lng=' + latlng.lng();
+                    var url = '//approdhan.azurewebsites.net/modify.php?title=' + title + '&lat=' + location.latitude +
+                        '&lng=' + location.longitude +
+                        "&action=add";
                     url = encodeURI(url);
-                    downloadUrl(url, function (data, responseCode) {
-
-                        if (responseCode == 200 && data.length <= 1) {
-                            infowindow.close();
-                        }
-                    });
+                    downloadUrl(url, doNothing);
 
                 } else alert("No contact info given");
-
             }
         }
 
-
-
-        function handleLocationError(browserHasGeolocation, infoWindow, pos) {
-            infoWindow.setPosition(pos);
-            infoWindow.setContent(browserHasGeolocation ?
-                'Error: The Geolocation service failed.' :
-                'Error: Your browser doesn\'t support geolocation.');
-            infoWindow.open(map);
-        }
-    </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALqWE0ShMNtOF6z_bcp9fpttTSDBszVyw&amp;callback=initMap">
-    </script>
-    <script>
         function downloadUrl(url, callback) {
             var request = window.ActiveXObject ?
                 new ActiveXObject('Microsoft.XMLHTTP') :
@@ -210,7 +192,7 @@
 
         function doNothing() {}
     </script>
-
+    <script type='text/javascript' src='https://www.bing.com/api/maps/mapcontrol?key=AuSKbt48qPuKTbppe7xfZCrtmJenR53woxwLB9zOqQJ-UNLvnXkwV3VqnDBUQEQk&callback=loadMapScenario'></script>
 </body>
 
 </html>
